@@ -18,7 +18,7 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/dgraph-io/badger/v2/y"
+	"github.com/dgraph-io/badger/v3/y"
 	"github.com/dgraph-io/dgraph/x"
 	"github.com/golang/glog"
 	"github.com/pkg/errors"
