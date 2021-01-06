@@ -115,11 +115,6 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dgraph-io/badger v1.6.0 h1:DshxFxZWXUcO0xX476VJC07Xsr6ZCBVRHKZ93Oh7Evo=
 github.com/dgraph-io/badger v1.6.0/go.mod h1:zwt7syl517jmP8s94KqSxTlM6IMsdhYy6psNgSztDR4=
-github.com/dgraph-io/badger v1.6.2 h1:mNw0qs90GVgGGWylh0umH5iag1j6n/PeJtNvL6KY/x8=
-github.com/dgraph-io/badger/v2 v2.0.1-rc1.0.20201214114056-bcfae6104545 h1:s3361r5bydGBIq/TQruKAxPonvPPAe+6tKuvtNx6pY4=
-github.com/dgraph-io/badger/v2 v2.0.1-rc1.0.20201214114056-bcfae6104545/go.mod h1:5RUGROQEPbBw8Ba5Q4Tff8/dgwoJM6EeJCsCOLgSeek=
-github.com/dgraph-io/badger/v2 v2.2007.2 h1:EjjK0KqwaFMlPin1ajhP943VPENHJdEz1KLIegjaI3k=
-github.com/dgraph-io/badger/v2 v2.2007.2/go.mod h1:26P/7fbL4kUZVEVKLAKXkBXKOydDmM2p1e+NhhnBCAE=
 github.com/dgraph-io/badger/v3 v3.0.0-20210106095831-54688d8f24f7 h1:qU0J5QgeCtevFQj1tjHf48sBjAs/9SWUbqhyDw4kLCw=
 github.com/dgraph-io/badger/v3 v3.0.0-20210106095831-54688d8f24f7/go.mod h1:bo6m+cfT4VTQESaPd0O9SegI0XPzl5eKbUh1Uy4F9Do=
 github.com/dgraph-io/dgo/v200 v200.0.0-20200805103119-a3544c464dd6 h1:toHzMCdCUgYsjM0cW9+wafnKFXfp1HizIJUyzihN+vk=
@@ -131,7 +126,6 @@ github.com/dgraph-io/gqlparser/v2 v2.1.2 h1:N7dyP6Y2ScsyQjqw5+wjPJOsAmZE1q8TcMvs
 github.com/dgraph-io/gqlparser/v2 v2.1.2/go.mod h1:MYS4jppjyx8b9tuUtjV7jU1UFZK6P9fvO8TsIsQtRKU=
 github.com/dgraph-io/graphql-transport-ws v0.0.0-20200916064635-48589439591b h1:PDEhlwHpkEQ5WBfOOKZCNZTXFDGyCEWTYDhxGQbyIpk=
 github.com/dgraph-io/graphql-transport-ws v0.0.0-20200916064635-48589439591b/go.mod h1:7z3c/5w0sMYYZF5bHsrh8IH4fKwG5O5Y70cPH1ZLLRQ=
-github.com/dgraph-io/ristretto v0.0.3-0.20200630154024-f66de99634de/go.mod h1:KPxhHT9ZxKefz+PCeOGsrHpl1qZ7i70dGTu2u+Ahh6E=
 github.com/dgraph-io/ristretto v0.0.4-0.20201205013540-bafef7527542/go.mod h1:tv2ec8nA7vRpSYX7/MbP52ihrUMXIHit54CQMq8npXQ=
 github.com/dgraph-io/ristretto v0.0.4-0.20201218073023-6a5070bff779 h1:GiT2poyhgx/3vyX/1v+OTvoXDu57l2x5R+vQGuNsCAk=
 github.com/dgraph-io/ristretto v0.0.4-0.20201218073023-6a5070bff779/go.mod h1:tv2ec8nA7vRpSYX7/MbP52ihrUMXIHit54CQMq8npXQ=
@@ -220,8 +214,6 @@ github.com/golang/mock v1.3.1/go.mod h1:sBzyDLLjw3U8JLTeZvSv8jJB+tU5PVekmnlKIyFU
 github.com/golang/protobuf v1.2.0/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/golang/protobuf v1.3.1/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
 github.com/golang/protobuf v1.3.2/go.mod h1:6lQm79b+lXiMfvg/cZm0SGofjICqVBUtrP5yJMmIC1U=
-github.com/golang/protobuf v1.3.5 h1:F768QJ1E9tib+q5Sc8MkdJi1RxLTbRcTf8LJV56aRls=
-github.com/golang/protobuf v1.3.5/go.mod h1:6O5/vntMXwX2lRkT1hjjk0nAC1IDOTvTlVgjlRvqsdk=
 github.com/golang/protobuf v1.4.0-rc.1/go.mod h1:ceaxUfeHdC40wWswd/P6IGgMaK3YpKi5j83Wpe3EHw8=
 github.com/golang/protobuf v1.4.0-rc.1.0.20200221234624-67d41d38c208/go.mod h1:xKAWHe0F5eneWXFV3EuXVDTCmh+JuBKY0li0aMyXATA=
 github.com/golang/protobuf v1.4.0-rc.2/go.mod h1:LlEzMj4AhA7rCAGe4KMBDvJI+AwstrUpVNzEA03Pprs=
