@@ -22,7 +22,6 @@ import (
 	"crypto/tls"
 	"fmt"
 	"io/ioutil"
-	"log"
 	"math"
 	"net"
 	"net/http"
@@ -403,34 +402,11 @@ func setupServer(closer *z.Closer) {
 	}
 
 	tlsCfg, err := x.LoadServerTLSConfig(Alpha.Conf)
-	if err != nil {
-		log.Fatalf("Failed to setup TLS: %v\n", err)
-	}
-
+	x.Checkf(err, "Failed to setup TLS")
 	httpListener, err := setupListener(laddr, httpPort())
-	if err != nil {
-		log.Fatal(err)
-	}
-
+	x.Check(err)
 	grpcListener, err := setupListener(laddr, grpcPort())
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	http.HandleFunc("/query", queryHandler)
-	http.HandleFunc("/query/", queryHandler)
-	http.HandleFunc("/mutate", mutationHandler)
-	http.HandleFunc("/mutate/", mutationHandler)
-	http.HandleFunc("/commit", commitHandler)
-	http.HandleFunc("/alter", alterHandler)
-	http.HandleFunc("/health", healthCheck)
-	http.HandleFunc("/state", stateHandler)
-	http.HandleFunc("/jemalloc", x.JemallocHandler)
-
-	// TODO: Figure out what this is for?
-	http.HandleFunc("/debug/store", storeStatsHandler)
-
-	introspection := Alpha.Conf.GetBool("graphql_introspection")
+	x.Check(err)
 
 	// Global Epoch is a lockless synchronization mechanism for graphql service.
 	// It's is just an atomic counter used by the graphql subscription to update its state.
@@ -447,10 +423,96 @@ func setupServer(closer *z.Closer) {
 	// The global epoch is set to maxUint64 while exiting the server.
 	// By using this information polling goroutine terminates the subscription.
 	globalEpoch := uint64(0)
+	introspection := Alpha.Conf.GetBool("graphql_introspection")
 	var mainServer web.IServeGraphQL
 	var gqlHealthStore *admin.GraphQLHealthStore
 	// Do not use := notation here because adminServer is a global variable.
 	mainServer, adminServer, gqlHealthStore = admin.NewServers(introspection, &globalEpoch, closer)
+
+	handleHttpRequests(mainServer, gqlHealthStore, laddr, &globalEpoch)
+
+	// Initialize the servers.
+	admin.ServerCloser = z.NewCloser(3)
+	go serveGRPC(grpcListener, tlsCfg, admin.ServerCloser)
+	go x.StartListenHttpAndHttps(httpListener, tlsCfg, admin.ServerCloser)
+
+	if Alpha.Conf.GetBool("telemetry") {
+		go edgraph.PeriodicallyPostTelemetry()
+	}
+
+	// setup shutdown os signal handler
+	sdCh := make(chan os.Signal, 3)
+	// sigint : Ctrl-C, sigterm : kill command.
+	signal.Notify(sdCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
+	defer func() {
+		signal.Stop(sdCh)
+		close(sdCh)
+	}()
+	go func() {
+		var numShutDownSig int
+		for range sdCh {
+			closer := admin.ServerCloser
+			if closer == nil {
+				glog.Infoln("Caught Ctrl-C. Terminating now.")
+				os.Exit(1)
+			}
+
+			select {
+			case <-closer.HasBeenClosed():
+			default:
+				closer.Signal()
+			}
+			numShutDownSig++
+			glog.Infoln("Caught Ctrl-C. Terminating now (this may take a few seconds)...")
+
+			switch {
+			case atomic.LoadUint32(&initDone) < 2:
+				// Forcefully kill alpha if we haven't finish server initialization.
+				glog.Infoln("Stopped before initialization completed")
+				os.Exit(1)
+			case numShutDownSig == 3:
+				glog.Infoln("Signaled thrice. Aborting!")
+				os.Exit(1)
+			}
+		}
+	}()
+
+	go func() {
+		defer admin.ServerCloser.Done()
+
+		<-admin.ServerCloser.HasBeenClosed()
+		atomic.StoreUint64(&globalEpoch, math.MaxUint64)
+
+		// Stops grpc/http servers; Already accepted connections are not closed.
+		if err := grpcListener.Close(); err != nil {
+			glog.Warningf("Error while closing gRPC listener: %s", err)
+		}
+		if err := httpListener.Close(); err != nil {
+			glog.Warningf("Error while closing HTTP listener: %s", err)
+		}
+	}()
+
+	glog.Infoln("gRPC server started.  Listening on port", grpcPort())
+	glog.Infoln("HTTP server started.  Listening on port", httpPort())
+
+	atomic.AddUint32(&initDone, 1)
+	admin.ServerCloser.Wait()
+}
+
+func handleHttpRequests(mainServer web.IServeGraphQL, gqlHealthStore *admin.GraphQLHealthStore,
+	laddr string, globalEpoch *uint64) {
+	http.HandleFunc("/query", queryHandler)
+	http.HandleFunc("/query/", queryHandler)
+	http.HandleFunc("/mutate", mutationHandler)
+	http.HandleFunc("/mutate/", mutationHandler)
+	http.HandleFunc("/commit", commitHandler)
+	http.HandleFunc("/alter", alterHandler)
+	http.HandleFunc("/health", healthCheck)
+	http.HandleFunc("/state", stateHandler)
+	http.HandleFunc("/jemalloc", x.JemallocHandler)
+
+	// TODO: Figure out what this is for?
+	http.HandleFunc("/debug/store", storeStatsHandler)
 	http.Handle("/graphql", mainServer.HTTPHandler())
 	http.HandleFunc("/probe/graphql", func(w http.ResponseWriter, r *http.Request) {
 		healthStatus := gqlHealthStore.GetHealth()
@@ -461,7 +523,7 @@ func setupServer(closer *z.Closer) {
 		w.WriteHeader(httpStatusCode)
 		w.Header().Set("Content-Type", "application/json")
 		x.Check2(w.Write([]byte(fmt.Sprintf(`{"status":"%s","schemaUpdateCounter":%d}`,
-			healthStatus.StatusMsg, atomic.LoadUint64(&globalEpoch)))))
+			healthStatus.StatusMsg, atomic.LoadUint64(globalEpoch)))))
 	})
 	http.Handle("/admin", allowedMethodsHandler(allowedMethods{
 		http.MethodGet:     true,
@@ -524,36 +586,6 @@ func setupServer(closer *z.Closer) {
 
 	http.HandleFunc("/", homeHandler)
 	http.HandleFunc("/ui/keywords", keywordHandler)
-
-	// Initialize the servers.
-	admin.ServerCloser = z.NewCloser(3)
-	go serveGRPC(grpcListener, tlsCfg, admin.ServerCloser)
-	go x.StartListenHttpAndHttps(httpListener, tlsCfg, admin.ServerCloser)
-
-	if Alpha.Conf.GetBool("telemetry") {
-		go edgraph.PeriodicallyPostTelemetry()
-	}
-
-	go func() {
-		defer admin.ServerCloser.Done()
-
-		<-admin.ServerCloser.HasBeenClosed()
-		atomic.StoreUint64(&globalEpoch, math.MaxUint64)
-
-		// Stops grpc/http servers; Already accepted connections are not closed.
-		if err := grpcListener.Close(); err != nil {
-			glog.Warningf("Error while closing gRPC listener: %s", err)
-		}
-		if err := httpListener.Close(); err != nil {
-			glog.Warningf("Error while closing HTTP listener: %s", err)
-		}
-	}()
-
-	glog.Infoln("gRPC server started.  Listening on port", grpcPort())
-	glog.Infoln("HTTP server started.  Listening on port", httpPort())
-
-	atomic.AddUint32(&initDone, 1)
-	admin.ServerCloser.Wait()
 }
 
 func run() {
@@ -716,44 +748,6 @@ func run() {
 	posting.Init(worker.State.Pstore, postingListCacheSize)
 	defer posting.Cleanup()
 	worker.Init(worker.State.Pstore)
-
-	// setup shutdown os signal handler
-	sdCh := make(chan os.Signal, 3)
-
-	defer func() {
-		signal.Stop(sdCh)
-		close(sdCh)
-	}()
-	// sigint : Ctrl-C, sigterm : kill command.
-	signal.Notify(sdCh, os.Interrupt, syscall.SIGINT, syscall.SIGTERM)
-	go func() {
-		var numShutDownSig int
-		for range sdCh {
-			closer := admin.ServerCloser
-			if closer == nil {
-				glog.Infoln("Caught Ctrl-C. Terminating now.")
-				os.Exit(1)
-			}
-
-			select {
-			case <-closer.HasBeenClosed():
-			default:
-				closer.Signal()
-			}
-			numShutDownSig++
-			glog.Infoln("Caught Ctrl-C. Terminating now (this may take a few seconds)...")
-
-			switch {
-			case atomic.LoadUint32(&initDone) < 2:
-				// Forcefully kill alpha if we haven't finish server initialization.
-				glog.Infoln("Stopped before initialization completed")
-				os.Exit(1)
-			case numShutDownSig == 3:
-				glog.Infoln("Signaled thrice. Aborting!")
-				os.Exit(1)
-			}
-		}
-	}()
 
 	updaters := z.NewCloser(4)
 	go func() {
